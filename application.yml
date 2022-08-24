@@ -1,0 +1,3 @@
+payment-provider:
+  uri: "host.docker.internal:7902"
+  session-timeout: 300000

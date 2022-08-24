@@ -3,8 +3,9 @@ package com.segovia.model;
 import java.math.BigDecimal;
 
 public record PaymentRequest(
-    String id,
-    String recipient,
+    String msisdn,
     BigDecimal amount,  //better than double for currency values
-    String currency
+    String currency,
+    String reference,
+    String url
 ) {}
