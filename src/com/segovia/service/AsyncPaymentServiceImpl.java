@@ -1,82 +1,80 @@
 package com.segovia.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.segovia.model.ApiCredentials;
+import com.segovia.model.BasicPaymentResponse;
 import com.segovia.model.PaymentRequest;
-import com.segovia.model.PaymentResponse;
-import com.segovia.model.PaymentProviderSession;
-import lombok.RequiredArgsConstructor;
+import com.segovia.model.Session;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import java.util.HashMap;
-import java.util.Map;
+
+import java.util.Collections;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class AsyncPaymentServiceImpl implements AsyncPaymentService{
 
     private final RestTemplate restTemplate;
-    private final Map<ApiCredentials, PaymentProviderSession> sessionByApiCredentials = new HashMap<>();
+    private final ObjectMapper objectMapper;
+
 
     @Value("${payment-provider.session-timeout}")
     private long providerSessionTtl;
     @Value("${payment-provider.uri}")
     private String providerUri;
 
-    private AsyncPaymentServiceImpl(RestTemplate restTemplate){
+    private AsyncPaymentServiceImpl(RestTemplate restTemplate, ObjectMapper objectMapper){
         this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
     }
 
-    public CompletableFuture<PaymentResponse> process(PaymentRequest request, ApiCredentials credentials){
+    public void process(PaymentRequest request, ApiCredentials credentials){
 
         //check our auth status
-        PaymentProviderSession currentSession = Optional.ofNullable(sessionByApiCredentials.get(credentials))
-                .filter(session -> System.currentTimeMillis() - session.timeIssuedEpochMillis() < providerSessionTtl)
+        Session currentSession = Optional.ofNullable(sessionByApiCredentials.get(credentials))
+                .filter(session -> System.currentTimeMillis() > session.validUntil())
                 .orElseGet(() -> {
 
 
-                    PaymentProviderSession session = authenticate(credentials);
+                    Session session = authenticate(credentials);
                     sessionByApiCredentials.put(credentials, session);
                     return session;
 
                 }
                 );
 
-        //add remove to sessionCache.
 
 
-        postPayment(request, currentSession);
-        return null;
+        submitPayment(request, currentSession);
 
 
     }
 
-//    POST /auth
-//    Api-Key: XXXXXX
-//
-//    {"account": "my-account-id"}
 
-    //{"token": "my-session-token"}
+    private Session authenticate(ApiCredentials credentials){
 
-    private PaymentProviderSession authenticate(ApiCredentials credentials){
-
-        return new PaymentProviderSession(
+        return new Session(
                         restTemplate
                             .postForEntity(providerUri, credentials, String.class)
                             .getBody(),
-                        System.currentTimeMillis()
+                        System.currentTimeMillis() + providerSessionTtl
         );
 
     }
 
 
 
-
-    private PaymentResponse postPayment(PaymentRequest paymentRequest, PaymentProviderSession session){
-        return restTemplate
-            .postForEntity("url", paymentRequest, PaymentResponse.class)
-            .getBody();
+    private BasicPaymentResponse submitPayment(PaymentRequest paymentRequest, Session session){
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        headers.set("Authorization", "Bearer ".concat(session.token()));
+        HttpEntity<PaymentRequest> httpEntity = new HttpEntity<>(paymentRequest, headers);
+        return restTemplate.exchange(providerUri, HttpMethod.POST, httpEntity, BasicPaymentResponse.class).getBody();
     }
 
 

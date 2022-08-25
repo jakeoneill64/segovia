@@ -1,3 +1,10 @@
 payment-provider:
   uri: "host.docker.internal:7902"
   session-timeout: 300000
+application:
+  input-file: ""
+  output-file: ""
+  callback-url: "http://host.docker.internal:8080"
+credentials:
+  account-id: "SEGOVIA"
+  key: "0aVp83wuFp6wjvQ3"
