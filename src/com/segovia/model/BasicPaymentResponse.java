@@ -5,9 +5,9 @@ import lombok.Data;
 @Data
 public class BasicPaymentResponse {
 
-    protected String conversationID;
-    protected String message;
-    protected String status;
+    private String conversationID;
+    private String message;
+    private long status;
 
 
 

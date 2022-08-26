@@ -151,7 +151,7 @@ Other magic values (last 4 digits):
 Value | Result
 ----- | ------
 1000  | Simulate an internal error.
-1001  | Close the connection without responding.
+1001  | Close the connection without responding. 
 1002  | Return a malformed response.
 1003  | Succeed, but never send a callback request.
 1004  | Remain pending until the test provider is restarted.
