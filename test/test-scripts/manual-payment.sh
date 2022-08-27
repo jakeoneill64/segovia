@@ -35,6 +35,7 @@ do
        -H "Authorization: Bearer ${TOKEN}" \
        -X POST \
        -d $BODY \
+       -v \
         "http://${PAYMENT_PROVIDER_URI}/pay"
 
 done

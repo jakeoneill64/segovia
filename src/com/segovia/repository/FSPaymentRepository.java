@@ -56,13 +56,19 @@ public class FSPaymentRepository implements PaymentRepository{
 
         try {
 
-            printer.printRecord(
-                response.getCustomerReference(),
-                Optional.ofNullable(response.getReference()).orElse(""),
-                status,
-                Optional.ofNullable(response.getFee()).map(BigDecimal::toString).orElse(""),
-                response.getMessage()
-            );
+            synchronized (printer) {
+
+                printer.printRecord(
+                        response.getCustomerReference(),
+                        Optional.ofNullable(response.getReference()).orElse(""),
+                        status,
+                        Optional.ofNullable(response.getFee()).map(BigDecimal::toString).orElse(""),
+                        response.getMessage()
+                );
+
+                printer.flush();
+
+            }
 
         } catch (IOException e) {
             logger.error("could not write record with id ".concat(response.getCustomerReference()));

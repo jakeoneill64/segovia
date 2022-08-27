@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -27,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
+@DependsOn("FSPaymentRepository")
 public class AsyncPaymentServiceImpl implements AsyncPaymentService{
 
     private final RestTemplate restTemplate;
@@ -60,7 +62,7 @@ public class AsyncPaymentServiceImpl implements AsyncPaymentService{
 
         Try<BasicPaymentResponse> paymentAttempt = Try.ofFailable(() -> submitPayment(request));
 
-
+        logger.info("submitting payment with reference ".concat(request.reference()));
 
         Try<DetailedPaymentResponse> statusResponseAttempt = paymentAttempt
             .map((basicPaymentResponse) ->
@@ -90,7 +92,7 @@ public class AsyncPaymentServiceImpl implements AsyncPaymentService{
 
         if(statusResponse.getStatus() == 100) {
             pollIntervalByPaymentRequest.put(request, 2L);
-            //scheduleStatusPoll(statusResponse.getConversationID(), request);
+            scheduleStatusPoll(statusResponse.getConversationID(), request);
         }else {
             paymentRepository.insert(statusResponse);
         }
@@ -110,8 +112,10 @@ public class AsyncPaymentServiceImpl implements AsyncPaymentService{
         if (currentSession == null || currentSession.validUntil() < System.currentTimeMillis()) {
 
             Try<Session> authAttempt = Try.ofFailable(this::authenticate);
-            if (authAttempt.isSuccess())
+            if (authAttempt.isSuccess()) {
+                currentSession = authAttempt.getUnchecked();
                 return Optional.of(authAttempt.getUnchecked());
+            }
             else {
                 logger.error("could not authenticate with the payment provider");
                 return Optional.empty();

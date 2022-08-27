@@ -1,6 +1,7 @@
 package com.segovia;
 
 import com.jasongoodwin.monads.Try;
+import com.segovia.controller.PaymentController;
 import com.segovia.model.DetailedPaymentResponse;
 import com.segovia.model.PaymentRequest;
 import com.segovia.repository.PaymentRepository;
@@ -25,24 +26,33 @@ class IntegrationTests {
 
     @Autowired
     private AsyncPaymentServiceImpl paymentService;
+    @Autowired
+    PaymentController controller;
     @Value("${application.callback-url}")
     String callback;
 
     @Test
-    public void successIntegration() throws IOException, NoSuchFieldException, IllegalAccessException, InterruptedException {
+    public void successAndDuplicateIntegration() throws IOException, NoSuchFieldException, IllegalAccessException, InterruptedException {
 
         //atomic reference to get around lambda restrictions for test
         AtomicReference<DetailedPaymentResponse> outcome = new AtomicReference<>();
 
         PaymentRequest request = processCsv("test/sample-inputs/success.csv", outcome);
 
-        Thread.sleep(10000000);
+        Thread.sleep(5000);
 
         DetailedPaymentResponse paymentResponse = outcome.get();
 
         Assertions.assertNotNull(paymentResponse);
         Assertions.assertEquals(request.reference(), paymentResponse.getCustomerReference());
         Assertions.assertEquals(0, paymentResponse.getStatus());
+
+        processCsv("test/sample-inputs/success.csv", outcome);
+
+        paymentResponse = outcome.get();
+
+        Assertions.assertNotNull(paymentResponse);
+        Assertions.assertTrue(paymentResponse.getStatus() > 0);
 
     }
 
@@ -79,7 +89,6 @@ class IntegrationTests {
         Assertions.assertNotNull(paymentResponse);
         Assertions.assertEquals(-1, paymentResponse.getStatus());
         Assertions.assertEquals(request.reference(), paymentResponse.getCustomerReference());
-
     }
 
     @Test
@@ -90,7 +99,7 @@ class IntegrationTests {
 
         PaymentRequest paymentRequest = processCsv("test/sample-inputs/delayed-success.csv", outcome);
 
-        Thread.sleep(1_000_000L); // seems to callback after 5 mins
+        Thread.sleep(500_000L);
 
         DetailedPaymentResponse output = outcome.get();
 
@@ -119,12 +128,32 @@ class IntegrationTests {
 
     }
 
+
     @Test
-    public void invalidRequestIntegration() throws IOException, NoSuchFieldException, IllegalAccessException, InterruptedException {
+    public void malformedResponseIntegration() throws IOException, NoSuchFieldException, IllegalAccessException, InterruptedException {
         //atomic reference to get around lambda restrictions for test
         AtomicReference<DetailedPaymentResponse> outcome = new AtomicReference<>();
 
-        PaymentRequest request = processCsv("test/sample-inputs/invalid-request.csv", outcome);
+        PaymentRequest request = processCsv("test/sample-inputs/malformed.csv", outcome);
+
+        Thread.sleep(5000);
+
+        DetailedPaymentResponse detailedPaymentResponse = outcome.get();
+
+        Assertions.assertNotNull(detailedPaymentResponse);
+
+        Assertions.assertEquals(detailedPaymentResponse.getCustomerReference(), request.reference());
+        Assertions.assertTrue(detailedPaymentResponse.getStatus() < 0);
+
+    }
+
+    @Test
+    public void walletFullIntegration() throws IOException, NoSuchFieldException, IllegalAccessException, InterruptedException {
+
+        //atomic reference to get around lambda restrictions for test
+        AtomicReference<DetailedPaymentResponse> outcome = new AtomicReference<>();
+
+        PaymentRequest request = processCsv("test/sample-inputs/wallet-full.csv", outcome);
 
         Thread.sleep(5000);
 
@@ -134,42 +163,7 @@ class IntegrationTests {
 
         Assertions.assertEquals(detailedPaymentResponse.getCustomerReference(), request.reference());
         Assertions.assertTrue(detailedPaymentResponse.getStatus() > 0);
-    }
-    @Test
-    public void malformedResponseIntegration() throws IOException, NoSuchFieldException, IllegalAccessException {
-        PaymentRequest request = csvToRequest("test/sample-inputs/malformed.csv");
-        //atomic reference to get around lambda restrictions for test
-        AtomicReference<DetailedPaymentResponse> outcome = new AtomicReference<>();
 
-        PaymentRepository testPaymentRepo = outcome::set;
-
-        Field repositoryField = AsyncPaymentServiceImpl.class.getDeclaredField("paymentRepository");
-        repositoryField.setAccessible(true);
-        repositoryField.set(paymentService, testPaymentRepo);
-
-        paymentService.process(request);
-
-        DetailedPaymentResponse correct = new DetailedPaymentResponse(request.reference(), 0, "");
-
-        Assertions.assertEquals(correct, outcome.get());
-    }
-    @Test
-    public void foreverPendingIntegration() throws IOException, NoSuchFieldException, IllegalAccessException {
-        PaymentRequest request = csvToRequest("test/sample-inputs/forever-pending.csv");
-        //atomic reference to get around lambda restrictions for test
-        AtomicReference<DetailedPaymentResponse> outcome = new AtomicReference<>();
-
-        PaymentRepository testPaymentRepo = outcome::set;
-
-        Field repositoryField = AsyncPaymentServiceImpl.class.getDeclaredField("paymentRepository");
-        repositoryField.setAccessible(true);
-        repositoryField.set(paymentService, testPaymentRepo);
-
-        paymentService.process(request);
-
-        DetailedPaymentResponse correct = new DetailedPaymentResponse(request.reference(), 0, "");
-
-        Assertions.assertEquals(correct, outcome.get());
     }
 
     private PaymentRequest processCsv(String filename, AtomicReference<DetailedPaymentResponse> pendingOutcome) throws IOException, NoSuchFieldException, IllegalAccessException {
