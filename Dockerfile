@@ -7,4 +7,4 @@ RUN mv jdk-17.0.4.1 /opt/java-17
 
 COPY build/libs/segovia.jar /opt/segovia/
 
-ENTRYPOINT ["/opt/java/bin/java", "-Dspring.profiles.active=production", "-jar", "segovia.jar"]
+ENTRYPOINT ["/opt/java-17/bin/java", "-Dspring.profiles.active=production", "-jar", "segovia.jar"]
