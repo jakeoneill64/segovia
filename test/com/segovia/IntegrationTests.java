@@ -26,8 +26,6 @@ class IntegrationTests {
 
     @Autowired
     private AsyncPaymentServiceImpl paymentService;
-    @Autowired
-    PaymentController controller;
     @Value("${application.callback-url}")
     String callback;
 
@@ -48,6 +46,8 @@ class IntegrationTests {
         Assertions.assertEquals(0, paymentResponse.getStatus());
 
         processCsv("test/sample-inputs/success.csv", outcome);
+
+        Thread.sleep(5000);
 
         paymentResponse = outcome.get();
 

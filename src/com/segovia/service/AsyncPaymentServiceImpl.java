@@ -90,6 +90,8 @@ public class AsyncPaymentServiceImpl implements AsyncPaymentService{
 
         DetailedPaymentResponse statusResponse = statusResponseAttempt.getUnchecked();
 
+        paymentRequestByConversationId.put(statusResponse.getConversationID(), request);
+
         if(statusResponse.getStatus() == 100) {
             pollIntervalByPaymentRequest.put(request, 2L);
             scheduleStatusPoll(statusResponse.getConversationID(), request);
@@ -112,6 +114,7 @@ public class AsyncPaymentServiceImpl implements AsyncPaymentService{
         if (currentSession == null || currentSession.validUntil() < System.currentTimeMillis()) {
 
             Try<Session> authAttempt = Try.ofFailable(this::authenticate);
+            authAttempt.onFailure((e) -> logger.error(e.getMessage()));
             if (authAttempt.isSuccess()) {
                 currentSession = authAttempt.getUnchecked();
                 return Optional.of(authAttempt.getUnchecked());
