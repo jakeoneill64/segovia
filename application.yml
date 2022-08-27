@@ -2,8 +2,8 @@ payment-provider:
   url: "http://host.docker.internal:7902"
   session-timeout: 300000
 application:
-  input-file: "/var/opt/input.csv"
-  output-file: "/var/opt/output.csv"
+  input-file: "/var/opt/segovia/input.csv"
+  output-file: "/var/opt/segovia/output.csv"
   callback-url: "http://host.docker.internal:8080"
 credentials:
   account-id: "SEGOVIA"
