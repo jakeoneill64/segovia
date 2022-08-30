@@ -1,4 +1,4 @@
-# Segovia Test Task
+# Payments Service
 
 to get started, adjust the urls in `application.yml` to match your network setup (this is not tested with `host.docker.internal`)
 
